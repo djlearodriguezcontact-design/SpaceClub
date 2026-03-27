@@ -3,76 +3,158 @@
 <head>
   <title>Space Club Admin</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
     body {
-      background: #0f172a;
+      margin: 0;
+      font-family: Arial;
+      background: linear-gradient(135deg, #020617, #0f172a);
       color: white;
-      font-family: sans-serif;
+    }
+
+    h1 {
+      text-align: center;
       padding: 20px;
     }
-    input, select, button {
-      margin: 5px;
-      padding: 8px;
+
+    .container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      padding: 20px;
     }
+
+    .card {
+      background: rgba(30, 41, 59, 0.8);
+      border-radius: 12px;
+      padding: 15px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+
+    input, select {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      border-radius: 6px;
+      border: none;
+    }
+
     button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
       background: #22c55e;
       border: none;
+      border-radius: 6px;
+      color: black;
+      font-weight: bold;
       cursor: pointer;
     }
-    .box {
-      margin-top: 20px;
-      padding: 15px;
-      background: #1e293b;
+
+    button:hover {
+      background: #16a34a;
+    }
+
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+
+    .stat {
+      background: #020617;
+      padding: 10px;
+      border-radius: 8px;
+      text-align: center;
+      flex: 1;
+      margin: 5px;
+    }
+
+    ul {
+      padding: 0;
+      list-style: none;
+    }
+
+    li {
+      padding: 5px;
+      border-bottom: 1px solid #334155;
     }
   </style>
 </head>
 
 <body>
 
-<h1>🎧 Space Club Admin</h1>
+<h1>🎧 SPACE CLUB ADMIN</h1>
 
-<div class="box">
-  <h2>Agregar RRPP</h2>
-  <input id="rrppNombre" placeholder="Nombre">
-  <button onclick="addRRPP()">Agregar</button>
+<div class="container">
+
+  <!-- RRPP -->
+  <div class="card">
+    <h2>RRPP</h2>
+    <input id="rrppNombre" placeholder="Nombre RRPP">
+    <button onclick="addRRPP()">Agregar</button>
+  </div>
+
+  <!-- Ventas -->
+  <div class="card">
+    <h2>Ventas</h2>
+    <select id="rrppSelect"></select>
+    <input id="cantidad" placeholder="Cantidad">
+    <input id="precio" placeholder="Precio">
+    <button onclick="addVenta()">Registrar</button>
+  </div>
+
+  <!-- Gastos -->
+  <div class="card">
+    <h2>Gastos</h2>
+    <input id="concepto" placeholder="Concepto">
+    <input id="monto" placeholder="Monto">
+    <button onclick="addGasto()">Agregar</button>
+  </div>
+
+  <!-- Caja -->
+  <div class="card">
+    <h2>Caja</h2>
+    <div class="stats">
+      <div class="stat">
+        <p>Ingresos</p>
+        <h3 id="ingresos">$0</h3>
+      </div>
+      <div class="stat">
+        <p>Gastos</p>
+        <h3 id="gastos">$0</h3>
+      </div>
+      <div class="stat">
+        <p>Ganancia</p>
+        <h3 id="ganancia">$0</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ranking -->
+  <div class="card">
+    <h2>Ranking RRPP</h2>
+    <ul id="ranking"></ul>
+  </div>
+
+  <!-- Gráfico -->
+  <div class="card">
+    <h2>Gráfico</h2>
+    <canvas id="grafico"></canvas>
+  </div>
+
 </div>
-
-<div class="box">
-  <h2>Ventas</h2>
-  <select id="rrppSelect"></select>
-  <input id="cantidad" placeholder="Cantidad">
-  <input id="precio" placeholder="Precio">
-  <button onclick="addVenta()">Registrar</button>
-</div>
-
-<div class="box">
-  <h2>Gastos</h2>
-  <input id="concepto" placeholder="Concepto">
-  <input id="monto" placeholder="Monto">
-  <button onclick="addGasto()">Agregar</button>
-</div>
-
-<div class="box">
-  <h2>Caja</h2>
-  <p id="ingresos"></p>
-  <p id="gastos"></p>
-  <p id="ganancia"></p>
-</div>
-
-<div class="box">
-  <h2>Ranking RRPP</h2>
-  <ul id="ranking"></ul>
-</div>
-
-<canvas id="grafico"></canvas>
 
 <script>
 let rrpps = [];
 let ventas = [];
 let gastos = [];
+let chart;
 
 function addRRPP() {
   const nombre = document.getElementById("rrppNombre").value;
+  if (!nombre) return;
+
   rrpps.push({ id: Date.now(), nombre });
   updateRRPP();
 }
@@ -108,12 +190,12 @@ function addGasto() {
 function updateDashboard() {
   const ingresos = ventas.reduce((a,v)=>a+v.cantidad*v.precio,0);
   const egresos = gastos.reduce((a,g)=>a+g.monto,0);
+  const ganancia = ingresos - egresos;
 
-  document.getElementById("ingresos").innerText = "Ingresos: $" + ingresos;
-  document.getElementById("gastos").innerText = "Gastos: $" + egresos;
-  document.getElementById("ganancia").innerText = "Ganancia: $" + (ingresos-egresos);
+  document.getElementById("ingresos").innerText = "$" + ingresos;
+  document.getElementById("gastos").innerText = "$" + egresos;
+  document.getElementById("ganancia").innerText = "$" + ganancia;
 
-  // Ranking
   const ranking = rrpps.map(r => {
     const total = ventas
       .filter(v => v.rrppId == r.id)
@@ -123,16 +205,17 @@ function updateDashboard() {
 
   const ul = document.getElementById("ranking");
   ul.innerHTML = "";
-  ranking.forEach(r => {
+  ranking.forEach((r,i) => {
     const li = document.createElement("li");
-    li.innerText = r.nombre + " - " + r.ventas;
+    li.innerText = (i+1) + ". " + r.nombre + " - " + r.ventas;
     ul.appendChild(li);
   });
 
-  // Gráfico
   const ctx = document.getElementById("grafico");
 
-  new Chart(ctx, {
+  if (chart) chart.destroy();
+
+  chart = new Chart(ctx, {
     type: "bar",
     data: {
       labels: ranking.map(r=>r.nombre),
