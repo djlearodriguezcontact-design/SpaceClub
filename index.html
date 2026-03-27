@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Space Club Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background: #0f172a;
+      color: white;
+      font-family: sans-serif;
+      padding: 20px;
+    }
+    input, select, button {
+      margin: 5px;
+      padding: 8px;
+    }
+    button {
+      background: #22c55e;
+      border: none;
+      cursor: pointer;
+    }
+    .box {
+      margin-top: 20px;
+      padding: 15px;
+      background: #1e293b;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>🎧 Space Club Admin</h1>
+
+<div class="box">
+  <h2>Agregar RRPP</h2>
+  <input id="rrppNombre" placeholder="Nombre">
+  <button onclick="addRRPP()">Agregar</button>
+</div>
+
+<div class="box">
+  <h2>Ventas</h2>
+  <select id="rrppSelect"></select>
+  <input id="cantidad" placeholder="Cantidad">
+  <input id="precio" placeholder="Precio">
+  <button onclick="addVenta()">Registrar</button>
+</div>
+
+<div class="box">
+  <h2>Gastos</h2>
+  <input id="concepto" placeholder="Concepto">
+  <input id="monto" placeholder="Monto">
+  <button onclick="addGasto()">Agregar</button>
+</div>
+
+<div class="box">
+  <h2>Caja</h2>
+  <p id="ingresos"></p>
+  <p id="gastos"></p>
+  <p id="ganancia"></p>
+</div>
+
+<div class="box">
+  <h2>Ranking RRPP</h2>
+  <ul id="ranking"></ul>
+</div>
+
+<canvas id="grafico"></canvas>
+
+<script>
+let rrpps = [];
+let ventas = [];
+let gastos = [];
+
+function addRRPP() {
+  const nombre = document.getElementById("rrppNombre").value;
+  rrpps.push({ id: Date.now(), nombre });
+  updateRRPP();
+}
+
+function updateRRPP() {
+  const select = document.getElementById("rrppSelect");
+  select.innerHTML = "";
+  rrpps.forEach(r => {
+    const option = document.createElement("option");
+    option.value = r.id;
+    option.text = r.nombre;
+    select.appendChild(option);
+  });
+}
+
+function addVenta() {
+  const rrppId = document.getElementById("rrppSelect").value;
+  const cantidad = Number(document.getElementById("cantidad").value);
+  const precio = Number(document.getElementById("precio").value);
+
+  ventas.push({ rrppId, cantidad, precio });
+  updateDashboard();
+}
+
+function addGasto() {
+  const concepto = document.getElementById("concepto").value;
+  const monto = Number(document.getElementById("monto").value);
+
+  gastos.push({ concepto, monto });
+  updateDashboard();
+}
+
+function updateDashboard() {
+  const ingresos = ventas.reduce((a,v)=>a+v.cantidad*v.precio,0);
+  const egresos = gastos.reduce((a,g)=>a+g.monto,0);
+
+  document.getElementById("ingresos").innerText = "Ingresos: $" + ingresos;
+  document.getElementById("gastos").innerText = "Gastos: $" + egresos;
+  document.getElementById("ganancia").innerText = "Ganancia: $" + (ingresos-egresos);
+
+  // Ranking
+  const ranking = rrpps.map(r => {
+    const total = ventas
+      .filter(v => v.rrppId == r.id)
+      .reduce((a,v)=>a+v.cantidad,0);
+    return { nombre: r.nombre, ventas: total };
+  }).sort((a,b)=>b.ventas-a.ventas);
+
+  const ul = document.getElementById("ranking");
+  ul.innerHTML = "";
+  ranking.forEach(r => {
+    const li = document.createElement("li");
+    li.innerText = r.nombre + " - " + r.ventas;
+    ul.appendChild(li);
+  });
+
+  // Gráfico
+  const ctx = document.getElementById("grafico");
+
+  new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: ranking.map(r=>r.nombre),
+      datasets: [{
+        label: "Ventas",
+        data: ranking.map(r=>r.ventas)
+      }]
+    }
+  });
+}
+</script>
+
+</body>
+</html>
