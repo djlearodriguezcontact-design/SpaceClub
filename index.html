@@ -1,231 +1,265 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Space Club Admin</title>
+  <title>Space Club </title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
       margin: 0;
       font-family: Arial;
-      background: linear-gradient(135deg, #020617, #0f172a);
+      background: #020617;
       color: white;
     }
 
-    h1 {
-      text-align: center;
-      padding: 20px;
-    }
-
     .container {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
       padding: 20px;
     }
 
-    .card {
-      background: rgba(30, 41, 59, 0.8);
-      border-radius: 12px;
-      padding: 15px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.5);
-    }
-
-    input, select {
-      width: 100%;
-      padding: 8px;
+    input {
+      display: block;
       margin: 5px 0;
-      border-radius: 6px;
-      border: none;
+      padding: 8px;
+      width: 100%;
     }
 
     button {
-      width: 100%;
       padding: 10px;
-      margin-top: 5px;
+      margin: 5px 0;
       background: #22c55e;
       border: none;
-      border-radius: 6px;
-      color: black;
-      font-weight: bold;
+      width: 100%;
       cursor: pointer;
     }
 
-    button:hover {
-      background: #16a34a;
-    }
-
-    .stats {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 10px;
-    }
-
-    .stat {
-      background: #020617;
-      padding: 10px;
-      border-radius: 8px;
-      text-align: center;
-      flex: 1;
-      margin: 5px;
-    }
-
-    ul {
-      padding: 0;
-      list-style: none;
-    }
-
     li {
+      border-bottom: 1px solid #1e293b;
       padding: 5px;
-      border-bottom: 1px solid #334155;
     }
   </style>
 </head>
 
 <body>
 
-<h1>🎧 SPACE CLUB ADMIN</h1>
+<div class="container" id="app"></div>
 
-<div class="container">
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-  <!-- RRPP -->
-  <div class="card">
-    <h2>RRPP</h2>
-    <input id="rrppNombre" placeholder="Nombre RRPP">
-    <button onclick="addRRPP()">Agregar</button>
-  </div>
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_DOMINIO",
+  projectId: "TU_PROJECT_ID"
+};
 
-  <!-- Ventas -->
-  <div class="card">
-    <h2>Ventas</h2>
-    <select id="rrppSelect"></select>
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+let userData = null;
+
+// ================= LOGIN =================
+function renderLogin() {
+  app.innerHTML = `
+    <h2>Login</h2>
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Ingresar</button>
+  `;
+}
+
+window.login = async function() {
+  await signInWithEmailAndPassword(
+    auth,
+    email.value,
+    password.value
+  );
+};
+
+// ================= ADMIN =================
+
+window.crearRRPP = async function() {
+  const cred = await createUserWithEmailAndPassword(
+    auth,
+    newEmail.value,
+    newPass.value
+  );
+
+  await setDoc(doc(db, "usuarios", cred.user.uid), {
+    rol: "rrpp",
+    nombre: nombreRRPP.value
+  });
+
+  alert("RRPP creado");
+};
+
+window.setComision = async function() {
+  await setDoc(doc(db, "comisiones", rrppNombre.value), {
+    comision: Number(comision.value)
+  });
+
+  alert("Comisión guardada");
+};
+
+window.guardarHora = async function() {
+  await setDoc(doc(db, "config", "horario"), {
+    horaLimite: horaLimite.value
+  });
+
+  alert("Horario guardado");
+};
+
+// ================= RRPP =================
+
+async function listaCerrada() {
+  const snap = await getDoc(doc(db, "config", "horario"));
+  if (!snap.exists()) return false;
+
+  const [h, m] = snap.data().horaLimite.split(":");
+
+  const limite = new Date();
+  limite.setHours(h, m, 0);
+
+  return new Date() > limite;
+}
+
+window.addVenta = async function() {
+  await addDoc(collection(db, "ventas"), {
+    rrpp: userData.nombre,
+    cantidad: Number(cantidad.value),
+    precio: Number(precio.value)
+  });
+};
+
+window.addInvitado = async function() {
+  if (await listaCerrada()) {
+    alert("Lista cerrada");
+    return;
+  }
+
+  await addDoc(collection(db, "invitados"), {
+    rrpp: userData.nombre,
+    nombre: nombreInv.value,
+    dni: dni.value,
+    asistio: false
+  });
+};
+
+// ================= ADMIN PANEL =================
+
+async function renderAdmin() {
+
+  const ventasSnap = await getDocs(collection(db, "ventas"));
+  const ventas = ventasSnap.docs.map(d=>d.data());
+
+  const comSnap = await getDocs(collection(db, "comisiones"));
+  const comisiones = {};
+  comSnap.docs.forEach(d=>{
+    comisiones[d.id] = d.data().comision;
+  });
+
+  let ingresos = 0;
+  const ranking = {};
+  const pagos = {};
+
+  ventas.forEach(v=>{
+    ingresos += v.cantidad * v.precio;
+
+    ranking[v.rrpp] = (ranking[v.rrpp] || 0) + v.cantidad;
+
+    const com = comisiones[v.rrpp] || 0;
+    pagos[v.rrpp] = (pagos[v.rrpp] || 0) + v.cantidad * com;
+  });
+
+  const invitadosSnap = await getDocs(collection(db, "invitados"));
+  const invitados = invitadosSnap.docs.map(d=>({id:d.id,...d.data()}));
+
+  app.innerHTML = `
+    <h1>ADMIN PANEL</h1>
+
+    <h2>Ingresos: $${ingresos}</h2>
+    <h2>Pagos RRPP: $${Object.values(pagos).reduce((a,b)=>a+b,0)}</h2>
+
+    <h3>Crear RRPP</h3>
+    <input id="nombreRRPP" placeholder="Nombre">
+    <input id="newEmail" placeholder="Email">
+    <input id="newPass" placeholder="Password">
+    <button onclick="crearRRPP()">Crear</button>
+
+    <h3>Comisiones</h3>
+    <input id="rrppNombre" placeholder="RRPP">
+    <input id="comision" placeholder="Comisión">
+    <button onclick="setComision()">Guardar</button>
+
+    <h3>Horario límite lista</h3>
+    <input id="horaLimite" type="time">
+    <button onclick="guardarHora()">Guardar</button>
+
+    <h3>Control de puerta</h3>
+    <ul>
+      ${invitados.map(i=>`
+        <li>
+          ${i.nombre} - ${i.dni} - ${i.rrpp}
+          <button onclick="toggleAsistencia('${i.id}', ${i.asistio})">
+            ${i.asistio ? "✔" : "❌"}
+          </button>
+        </li>
+      `).join("")}
+    </ul>
+  `;
+}
+
+// 👉 marcar asistencia
+window.toggleAsistencia = async function(id, estado) {
+  await updateDoc(doc(db, "invitados", id), {
+    asistio: !estado
+  });
+  renderAdmin();
+};
+
+// ================= RRPP PANEL =================
+
+async function renderRRPP() {
+
+  const cerrada = await listaCerrada();
+
+  app.innerHTML = `
+    <h1>Panel RRPP</h1>
+
+    ${cerrada ? "<h2 style='color:red'>LISTA CERRADA</h2>" : ""}
+
     <input id="cantidad" placeholder="Cantidad">
     <input id="precio" placeholder="Precio">
-    <button onclick="addVenta()">Registrar</button>
-  </div>
+    <button onclick="addVenta()">Cargar venta</button>
 
-  <!-- Gastos -->
-  <div class="card">
-    <h2>Gastos</h2>
-    <input id="concepto" placeholder="Concepto">
-    <input id="monto" placeholder="Monto">
-    <button onclick="addGasto()">Agregar</button>
-  </div>
+    <h3>Invitados</h3>
+    <input id="nombreInv" placeholder="Nombre">
+    <input id="dni" placeholder="DNI">
 
-  <!-- Caja -->
-  <div class="card">
-    <h2>Caja</h2>
-    <div class="stats">
-      <div class="stat">
-        <p>Ingresos</p>
-        <h3 id="ingresos">$0</h3>
-      </div>
-      <div class="stat">
-        <p>Gastos</p>
-        <h3 id="gastos">$0</h3>
-      </div>
-      <div class="stat">
-        <p>Ganancia</p>
-        <h3 id="ganancia">$0</h3>
-      </div>
-    </div>
-  </div>
-
-  <!-- Ranking -->
-  <div class="card">
-    <h2>Ranking RRPP</h2>
-    <ul id="ranking"></ul>
-  </div>
-
-  <!-- Gráfico -->
-  <div class="card">
-    <h2>Gráfico</h2>
-    <canvas id="grafico"></canvas>
-  </div>
-
-</div>
-
-<script>
-let rrpps = [];
-let ventas = [];
-let gastos = [];
-let chart;
-
-function addRRPP() {
-  const nombre = document.getElementById("rrppNombre").value;
-  if (!nombre) return;
-
-  rrpps.push({ id: Date.now(), nombre });
-  updateRRPP();
+    <button onclick="addInvitado()" ${cerrada ? "disabled" : ""}>
+      Agregar invitado
+    </button>
+  `;
 }
 
-function updateRRPP() {
-  const select = document.getElementById("rrppSelect");
-  select.innerHTML = "";
-  rrpps.forEach(r => {
-    const option = document.createElement("option");
-    option.value = r.id;
-    option.text = r.nombre;
-    select.appendChild(option);
-  });
-}
+// ================= AUTH =================
 
-function addVenta() {
-  const rrppId = document.getElementById("rrppSelect").value;
-  const cantidad = Number(document.getElementById("cantidad").value);
-  const precio = Number(document.getElementById("precio").value);
+onAuthStateChanged(auth, async (user) => {
 
-  ventas.push({ rrppId, cantidad, precio });
-  updateDashboard();
-}
+  if (!user) return renderLogin();
 
-function addGasto() {
-  const concepto = document.getElementById("concepto").value;
-  const monto = Number(document.getElementById("monto").value);
+  const docSnap = await getDoc(doc(db, "usuarios", user.uid));
+  userData = docSnap.data();
 
-  gastos.push({ concepto, monto });
-  updateDashboard();
-}
+  if (userData.rol === "admin") {
+    renderAdmin();
+  } else {
+    renderRRPP();
+  }
 
-function updateDashboard() {
-  const ingresos = ventas.reduce((a,v)=>a+v.cantidad*v.precio,0);
-  const egresos = gastos.reduce((a,g)=>a+g.monto,0);
-  const ganancia = ingresos - egresos;
-
-  document.getElementById("ingresos").innerText = "$" + ingresos;
-  document.getElementById("gastos").innerText = "$" + egresos;
-  document.getElementById("ganancia").innerText = "$" + ganancia;
-
-  const ranking = rrpps.map(r => {
-    const total = ventas
-      .filter(v => v.rrppId == r.id)
-      .reduce((a,v)=>a+v.cantidad,0);
-    return { nombre: r.nombre, ventas: total };
-  }).sort((a,b)=>b.ventas-a.ventas);
-
-  const ul = document.getElementById("ranking");
-  ul.innerHTML = "";
-  ranking.forEach((r,i) => {
-    const li = document.createElement("li");
-    li.innerText = (i+1) + ". " + r.nombre + " - " + r.ventas;
-    ul.appendChild(li);
-  });
-
-  const ctx = document.getElementById("grafico");
-
-  if (chart) chart.destroy();
-
-  chart = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: ranking.map(r=>r.nombre),
-      datasets: [{
-        label: "Ventas",
-        data: ranking.map(r=>r.ventas)
-      }]
-    }
-  });
-}
+});
 </script>
 
 </body>
