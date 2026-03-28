@@ -1,106 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Boliche PRO SYSTEM</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body { margin:0; font-family:Segoe UI; background:#0d0d0d; color:#fff; }
+header { padding:20px; background:#111; text-align:center; }
+.btn { background:#7b2cff; padding:10px; border:none; color:#fff; border-radius:8px; cursor:pointer; }
+.container { padding:20px; }
+.card { background:#1a1a1a; padding:10px; margin:10px 0; border-radius:10px; }
+nav { display:flex; gap:10px; padding:10px; background:#0f0f0f; }
+nav button { background:#222; color:#fff; border:none; padding:10px; border-radius:8px; cursor:pointer; }
+.module { display:none; }
+.active { display:block; }
+.alert { background:red; padding:10px; border-radius:8px; margin:10px 0; }
+</style>
+</head>
+
+<body>
+
+<header>
+<h2>🔥 SISTEMA BOLICHE PRO</h2>
+<button class="btn" onclick="entrar()">Entrar</button>
+</header>
+
+<div class="dashboard" style="display:none;">
+
+<nav>
+<button onclick="show('inicio')">Dashboard</button>
+<button onclick="show('caja')">Caja</button>
+<button onclick="show('vip')">VIP</button>
+<button onclick="show('stock')">Stock</button>
+<button onclick="show('rrpp')">RRPP</button>
+</nav>
+
+<div class="container">
+
+<div id="alertas"></div>
+
+<!-- DASHBOARD -->
+<div id="inicio" class="module active">
+<h3>Dashboard</h3>
+
+<div class="card">💰 Ingresos: $<span id="totalVentas">0</span></div>
+<div class="card">💸 Gastos: $<span id="totalGastos">0</span></div>
+<div class="card">📈 Ganancia: $<span id="ganancia">0</span></div>
+
+<canvas id="grafico"></canvas>
+</div>
+
+<!-- CAJA -->
+<div id="caja" class="module">
+<h3>Caja</h3>
+
+<input id="monto" placeholder="Ingreso">
+<button class="btn" onclick="sumarCaja()">Agregar ingreso</button>
+
+<input id="gasto" placeholder="Gasto">
+<button class="btn" onclick="sumarGasto()">Agregar gasto</button>
+
+<div class="card">Caja total: $<span id="cajaTotal">0</span></div>
+</div>
+
+<!-- VIP -->
+<div id="vip" class="module">
+<h3>VIP</h3>
+<button class="btn" onclick="agregarVIP()">Crear mesa</button>
+<ul id="listaVIP"></ul>
+</div>
+
+<!-- STOCK -->
+<div id="stock" class="module">
+<h3>Stock</h3>
+<button class="btn" onclick="usarFernet()">Vender Fernet</button>
+<div class="card">Fernet: <span id="fernetStock">10</span></div>
+</div>
+
+<!-- RRPP -->
+<div id="rrpp" class="module">
+<h3>RRPP SYSTEM</h3>
+
+<button class="btn" onclick="crearRRPP()">+ Crear RRPP</button>
+
+<input id="qrInput" placeholder="Código RRPP">
+<button class="btn" onclick="generarQR()">Generar QR</button>
+
+<div id="qr"></div>
+</div>
+
+</div>
+</div>
+
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, doc, setDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// CONFIG
 const firebaseConfig = {
-  apiKey: "AIzaSyApCGqlcCCEOggTrLBhG-sobbsssK9MRUQ",
-  authDomain: "boliche-pro.firebaseapp.com",
-  projectId: "boliche-pro",
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_PROJECT.firebaseapp.com",
+  projectId: "TU_PROJECT_ID"
 };
 
-// INIT
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth(app);
 
 // ESTADO
 let caja = 0;
 let gastos = 0;
-let rrpp = 0;
-let stockFernet = 10;
-let vipMesas = [];
+let stock = 10;
+let vip = [];
 let chart;
 
-// HACER FUNCIONES GLOBALES
-window.entrar = function(){
-  document.querySelector('.dashboard').style.display='block';
-}
+// UI
+window.entrar = () => document.querySelector('.dashboard').style.display='block';
 
-window.show = function(id){
+window.show = (id)=>{
   document.querySelectorAll('.module').forEach(m=>m.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
 
-// CAJA FIREBASE
-window.sumarCaja = async function(){
-  let val = parseInt(document.getElementById('monto').value) || 0;
+// CAJA
+window.sumarCaja = async ()=>{
+  let v = +document.getElementById("monto").value;
 
-  await addDoc(collection(db, "movimientos"), {
-    tipo: "ingreso",
-    monto: val,
-    fecha: new Date()
+  await addDoc(collection(db,"movimientos"),{
+    tipo:"ingreso",
+    monto:v
   });
 
-  cargarDatos();
+  cargar();
 }
 
-window.sumarGasto = async function(){
-  let val = parseInt(document.getElementById('gasto').value) || 0;
+window.sumarGasto = async ()=>{
+  let v = +document.getElementById("gasto").value;
 
-  await addDoc(collection(db, "movimientos"), {
-    tipo: "gasto",
-    monto: val,
-    fecha: new Date()
+  await addDoc(collection(db,"movimientos"),{
+    tipo:"gasto",
+    monto:v
   });
 
-  cargarDatos();
+  cargar();
 }
 
-// LEER DATOS
-async function cargarDatos(){
-  const querySnapshot = await getDocs(collection(db, "movimientos"));
+// LEER CAJA
+async function cargar(){
+  let snap = await getDocs(collection(db,"movimientos"));
 
-  let ingresos = 0;
-  let totalGastos = 0;
+  let ing=0, gas=0;
 
-  querySnapshot.forEach(doc => {
-    let data = doc.data();
-
-    if(data.tipo === "ingreso") ingresos += data.monto;
-    if(data.tipo === "gasto") totalGastos += data.monto;
+  snap.forEach(d=>{
+    let x=d.data();
+    if(x.tipo=="ingreso") ing+=x.monto;
+    if(x.tipo=="gasto") gas+=x.monto;
   });
 
-  caja = ingresos;
-  gastos = totalGastos;
+  caja=ing;
+  gastos=gas;
 
   update();
 }
 
 // VIP
-window.agregarVIP = function(){
-  vipMesas.push(0);
+window.agregarVIP = ()=>{
+  vip.push(0);
   renderVIP();
 }
 
-window.consumirVIP = function(i){
-  vipMesas[i] += 5000;
+window.cerrarVIP = (i)=>{
+  caja += vip[i];
+  vip.splice(i,1);
+  renderVIP();
   update();
-  renderVIP();
 }
 
-window.cerrarVIP = function(i){
-  caja += vipMesas[i];
-  vipMesas.splice(i,1);
+window.consumirVIP = (i)=>{
+  vip[i]+=5000;
   renderVIP();
   update();
 }
 
 function renderVIP(){
-  document.getElementById("listaVIP").innerHTML = vipMesas.map((v,i)=>`
-    <li>Mesa ${i+1} - $${v}
+  document.getElementById("listaVIP").innerHTML =
+  vip.map((v,i)=>`
+    <li>Mesa ${i+1} $${v}
     <button onclick="consumirVIP(${i})">+</button>
     <button onclick="cerrarVIP(${i})">✔</button>
     </li>
@@ -108,57 +195,69 @@ function renderVIP(){
 }
 
 // STOCK
-window.usarFernet = function(){
-  stockFernet--;
+window.usarFernet = ()=>{
+  stock--;
   update();
 }
 
 // RRPP
-window.sumarRRPP = function(){
-  rrpp++;
-  update();
+window.crearRRPP = async ()=>{
+  let nombre = prompt("Nombre RRPP");
+  let codigo = nombre.toUpperCase()+Math.floor(Math.random()*100);
+
+  await setDoc(doc(db,"rrpp",codigo),{
+    nombre,
+    ingresos:0,
+    comision:0
+  });
+
+  alert("RRPP creado: "+codigo);
+}
+
+window.generarQR = ()=>{
+  let code = document.getElementById("qrInput").value;
+
+  document.getElementById("qr").innerHTML =
+  `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${code}">`;
 }
 
 // ALERTAS
-function checkAlertas(){
-  document.getElementById("alertas").innerHTML = stockFernet <= 3 
-    ? "<div class='alert'>⚠️ Stock bajo</div>" 
-    : "";
+function alertas(){
+  document.getElementById("alertas").innerHTML =
+  stock<=3? "<div class='alert'>Stock bajo</div>":"";
 }
 
 // GRÁFICO
-function renderChart(){
-  const ctx = document.getElementById('grafico');
+function grafico(){
+  const ctx=document.getElementById("grafico");
 
   if(chart) chart.destroy();
 
-  chart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ['Ingresos', 'Gastos', 'Ganancia'],
-      datasets: [{
-        data: [caja, gastos, caja - gastos]
-      }]
+  chart=new Chart(ctx,{
+    type:"bar",
+    data:{
+      labels:["Ingresos","Gastos","Ganancia"],
+      datasets:[{data:[caja,gastos,caja-gastos]}]
     }
   });
 }
 
 // UPDATE
 function update(){
-  document.getElementById("cajaTotal").innerText = caja;
-  document.getElementById("gastosTotal").innerText = gastos;
-  document.getElementById("totalVentas").innerText = caja;
-  document.getElementById("totalGastos").innerText = gastos;
-  document.getElementById("ganancia").innerText = caja - gastos;
-  document.getElementById("vipActivos").innerText = vipMesas.length;
-  document.getElementById("fernetStock").innerText = stockFernet;
-  document.getElementById("rrppTotal").innerText = rrpp;
+  document.getElementById("cajaTotal").innerText=caja;
+  document.getElementById("totalVentas").innerText=caja;
+  document.getElementById("totalGastos").innerText=gastos;
+  document.getElementById("ganancia").innerText=caja-gastos;
+  document.getElementById("fernetStock").innerText=stock;
 
-  checkAlertas();
-  renderChart();
+  alertas();
+  grafico();
 }
 
 // INIT
-cargarDatos();
+cargar();
 
 </script>
+
+</body>
+</html>
