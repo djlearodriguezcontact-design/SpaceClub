@@ -1,171 +1,20 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Sistema Boliche PRO</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script type="module">
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-<style>
-body {
-  margin: 0;
-  font-family: 'Segoe UI', sans-serif;
-  background: #0d0d0d;
-  color: #eaeaea;
-}
+// CONFIG
+const firebaseConfig = {
+  apiKey: "AIzaSyApCGqlcCCEOggTrLBhG-sobbsssK9MRUQ",
+  authDomain: "boliche-pro.firebaseapp.com",
+  projectId: "boliche-pro",
+};
 
-header {
-  background: #121212;
-  padding: 20px;
-  text-align: center;
-  border-bottom: 1px solid #222;
-}
-
-h1 {
-  font-weight: 500;
-}
-
-.container { padding: 20px; }
-
-.btn {
-  background: #7b2cff;
-  border: none;
-  padding: 10px 15px;
-  color: white;
-  cursor: pointer;
-  border-radius: 8px;
-}
-
-input {
-  padding: 10px;
-  border-radius: 8px;
-  border: none;
-  margin: 5px 0;
-  width: 100%;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 15px;
-}
-
-.card {
-  background: #161616;
-  padding: 15px;
-  border-radius: 12px;
-  border: 1px solid #222;
-}
-
-.dashboard { display: none; }
-
-nav {
-  background: #111;
-  padding: 10px;
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-}
-
-nav button {
-  background: #1c1c1c;
-  border: none;
-  color: white;
-  padding: 10px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.module { display: none; }
-.active { display: block; }
-
-.alert {
-  background: #ff3b3b;
-  padding: 10px;
-  border-radius: 8px;
-  margin-bottom: 10px;
-}
-</style>
-</head>
-
-<body>
-
-<header>
-  <h1>Sistema Boliche PRO</h1>
-  <button class="btn" onclick="entrar()">Entrar</button>
-</header>
-
-<div class="dashboard">
-
-<nav>
-  <button onclick="show('inicio')">Dashboard</button>
-  <button onclick="show('caja')">Caja</button>
-  <button onclick="show('vip')">VIP</button>
-  <button onclick="show('stock')">Stock</button>
-  <button onclick="show('rrpp')">RRPP</button>
-</nav>
-
-<div class="container">
-
-<div id="alertas"></div>
-
-<!-- DASHBOARD -->
-<div id="inicio" class="module active">
-  <h2>Dashboard</h2>
-  <div class="grid">
-    <div class="card">💰 Ingresos: $<span id="totalVentas">0</span></div>
-    <div class="card">💸 Gastos: $<span id="totalGastos">0</span></div>
-    <div class="card">📈 Ganancia: $<span id="ganancia">0</span></div>
-    <div class="card">🍾 VIP: <span id="vipActivos">0</span></div>
-  </div>
-
-  <canvas id="grafico"></canvas>
-</div>
-
-<!-- CAJA -->
-<div id="caja" class="module">
-  <h2>Caja</h2>
-
-  <h3>Ingresos</h3>
-  <input id="monto" placeholder="Monto ingreso">
-  <button class="btn" onclick="sumarCaja()">Agregar ingreso</button>
-
-  <h3>Gastos</h3>
-  <input id="gasto" placeholder="Monto gasto">
-  <button class="btn" onclick="sumarGasto()">Agregar gasto</button>
-
-  <button class="btn" onclick="cerrarCaja()">Cerrar caja</button>
-
-  <p>Ingresos: $<span id="cajaTotal">0</span></p>
-  <p>Gastos: $<span id="gastosTotal">0</span></p>
-</div>
-
-<!-- VIP -->
-<div id="vip" class="module">
-  <h2>Mesas VIP</h2>
-  <button class="btn" onclick="agregarVIP()">Agregar Mesa</button>
-  <ul id="listaVIP"></ul>
-</div>
-
-<!-- STOCK -->
-<div id="stock" class="module">
-  <h2>Stock</h2>
-  <button class="btn" onclick="usarFernet()">Vender Fernet</button>
-  <p>Fernet: <span id="fernetStock">10</span></p>
-</div>
-
-<!-- RRPP -->
-<div id="rrpp" class="module">
-  <h2>RRPP</h2>
-  <button class="btn" onclick="sumarRRPP()">+1 ingreso</button>
-  <p>Total ingresos: <span id="rrppTotal">0</span></p>
-</div>
-
-</div>
-</div>
-
-<script>
+// INIT
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
 // ESTADO
 let caja = 0;
@@ -173,22 +22,21 @@ let gastos = 0;
 let rrpp = 0;
 let stockFernet = 10;
 let vipMesas = [];
-
 let chart;
 
-// UI
-function entrar(){
+// HACER FUNCIONES GLOBALES
+window.entrar = function(){
   document.querySelector('.dashboard').style.display='block';
 }
 
-function show(id){
+window.show = function(id){
   document.querySelectorAll('.module').forEach(m=>m.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
 
-// CAJA
-async function sumarCaja(){
-  let val = parseInt(monto.value) || 0;
+// CAJA FIREBASE
+window.sumarCaja = async function(){
+  let val = parseInt(document.getElementById('monto').value) || 0;
 
   await addDoc(collection(db, "movimientos"), {
     tipo: "ingreso",
@@ -199,8 +47,8 @@ async function sumarCaja(){
   cargarDatos();
 }
 
-async function sumarGasto(){
-  let val = parseInt(gasto.value) || 0;
+window.sumarGasto = async function(){
+  let val = parseInt(document.getElementById('gasto').value) || 0;
 
   await addDoc(collection(db, "movimientos"), {
     tipo: "gasto",
@@ -209,47 +57,41 @@ async function sumarGasto(){
   });
 
   cargarDatos();
-  
 }
 
-function cerrarCaja(){
-  alert("Ganancia final: $" + (caja - gastos));
-  caja = 0;
-  gastos = 0;
-  update();
-}
-  async function cargarDatos(){
+// LEER DATOS
+async function cargarDatos(){
   const querySnapshot = await getDocs(collection(db, "movimientos"));
 
   let ingresos = 0;
-  let gastos = 0;
+  let totalGastos = 0;
 
   querySnapshot.forEach(doc => {
     let data = doc.data();
 
     if(data.tipo === "ingreso") ingresos += data.monto;
-    if(data.tipo === "gasto") gastos += data.monto;
+    if(data.tipo === "gasto") totalGastos += data.monto;
   });
 
   caja = ingresos;
-  gastosTotal = gastos;
+  gastos = totalGastos;
 
   update();
 }
 
 // VIP
-function agregarVIP(){
+window.agregarVIP = function(){
   vipMesas.push(0);
   renderVIP();
 }
 
-function consumirVIP(i){
+window.consumirVIP = function(i){
   vipMesas[i] += 5000;
   update();
   renderVIP();
 }
 
-function cerrarVIP(i){
+window.cerrarVIP = function(i){
   caja += vipMesas[i];
   vipMesas.splice(i,1);
   renderVIP();
@@ -257,7 +99,7 @@ function cerrarVIP(i){
 }
 
 function renderVIP(){
-  listaVIP.innerHTML = vipMesas.map((v,i)=>`
+  document.getElementById("listaVIP").innerHTML = vipMesas.map((v,i)=>`
     <li>Mesa ${i+1} - $${v}
     <button onclick="consumirVIP(${i})">+</button>
     <button onclick="cerrarVIP(${i})">✔</button>
@@ -266,20 +108,20 @@ function renderVIP(){
 }
 
 // STOCK
-function usarFernet(){
+window.usarFernet = function(){
   stockFernet--;
   update();
 }
 
 // RRPP
-function sumarRRPP(){
+window.sumarRRPP = function(){
   rrpp++;
   update();
 }
 
 // ALERTAS
 function checkAlertas(){
-  alertas.innerHTML = stockFernet <= 3 
+  document.getElementById("alertas").innerHTML = stockFernet <= 3 
     ? "<div class='alert'>⚠️ Stock bajo</div>" 
     : "";
 }
@@ -295,64 +137,28 @@ function renderChart(){
     data: {
       labels: ['Ingresos', 'Gastos', 'Ganancia'],
       datasets: [{
-        label: 'Resumen',
         data: [caja, gastos, caja - gastos]
       }]
     }
   });
 }
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
-from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-
-const auth = getAuth();
-
-function registrar(){
-  createUserWithEmailAndPassword(auth, email.value, password.value)
-}
-  function login(){
-  signInWithEmailAndPassword(auth, email.value, password.value)
-  .then(()=>{
-    entrar();
-  });
-}
 
 // UPDATE
 function update(){
-  cajaTotal.innerText = caja;
-  gastosTotal.innerText = gastos;
-  totalVentas.innerText = caja;
-  totalGastos.innerText = gastos;
-  ganancia.innerText = caja - gastos;
-  vipActivos.innerText = vipMesas.length;
-  fernetStock.innerText = stockFernet;
-  rrppTotal.innerText = rrpp;
+  document.getElementById("cajaTotal").innerText = caja;
+  document.getElementById("gastosTotal").innerText = gastos;
+  document.getElementById("totalVentas").innerText = caja;
+  document.getElementById("totalGastos").innerText = gastos;
+  document.getElementById("ganancia").innerText = caja - gastos;
+  document.getElementById("vipActivos").innerText = vipMesas.length;
+  document.getElementById("fernetStock").innerText = stockFernet;
+  document.getElementById("rrppTotal").innerText = rrpp;
 
   checkAlertas();
   renderChart();
 }
 
-update();
+// INIT
+cargarDatos();
 
 </script>
-
-</body>
-  <script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyApCGqlcCCEOggTrLBhG-sobbsssK9MRUQ",
-    authDomain: "boliche-pro.firebaseapp.com",
-    projectId: "boliche-pro",
-    storageBucket: "boliche-pro.firebasestorage.app",
-    messagingSenderId: "962681207020",
-    appId: "1:962681207020:web:92e0951fa2e9b3cea90dc9"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-</script>
-</html>
